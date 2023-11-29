@@ -224,10 +224,16 @@ class _CameraAppState extends State<CameraApp> {
                     } catch (e) {
                       print('사진을 찍고 업로드하는 중 오류가 발생했습니다: $e');
                       timer.cancel(); // 예외 발생 시 타이머 취소
+                      setState(() {
+                        info = '물체가 화면 안에 없으므로 안내를 종료합니다.';
+                      });
                     }
                   });
                 } catch (e) {
                   print('컨트롤러 초기화 중 오류가 발생했습니다: $e');
+                  setState(() {
+                    info = '물체가 화면 안에 없으므로 안내를 종료합니다.';
+                  });
                 }
               },
               child: Icon(Icons.camera),
