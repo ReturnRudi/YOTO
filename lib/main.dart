@@ -66,7 +66,7 @@ class _CameraAppState extends State<CameraApp> {
   Future<http.Response?> uploadGet(File imageFile, int inputClass) async {
     try {
       // 1. POST 요청: 이미지 업로드
-      String serverUrl = "http://43.201.252.89:80/inference";
+      String serverUrl = "http://3.36.108.0:80/inference";
       var uri = Uri.parse(serverUrl);
       var request = http.MultipartRequest('POST', uri);
       request.files.add(
@@ -177,21 +177,20 @@ class _CameraAppState extends State<CameraApp> {
               onPressed: () async {
                 try {
                   await _initializeControllerFuture;
+                  var cnt = 0;
 
                   setState(() {
                     info = '탐색을 시작합니다.';
                   });
                   // 사진을 주기적으로 찍어서 서버로 보내는 작업을 제어하기 위한 플래그 추가
-                  bool stopSending = false;
                   // 5초 간격으로 작업을 수행하는 타이머 생성
-                  Timer.periodic(Duration(seconds: 2), (timer) async {
+                  Timer.periodic(Duration(seconds: 3), (timer) async {
                     try {
                       final XFile picture = await _controller.takePicture();
                       final path = picture.path;
 
                       // 업로드 함수에서 서버 응답 확인
                       var response = await uploadGet(File(path), classInput);
-
                       Map<String, dynamic> responseBody = json.decode(
                           response?.body ?? '{}');
 
@@ -203,36 +202,45 @@ class _CameraAppState extends State<CameraApp> {
                       setState(() {
                         detectionsText = '$detections';
                         percentageText = '$percentage';
+                        info = '물체가 ${detectionsText} 방향에 있습니다.';
                       });
 
                       if (percentage > 15) {
-                        stopSending = true;
                         timer.cancel();
                         print('물체 가까이 접근했으므로 안내를 종료합니다.');
                         setState(() {
                           info = '물체 가까이 접근했으므로 안내를 종료합니다.';
                         });
                       }
-                      else if (detections == "no detection") {
-                        stopSending = true;
-                        timer.cancel();
-                        print('물체가 화면 안에 없으므로 안내를 종료합니다.');
+                      else if (detections == "No items detected") {
+                        cnt++;
+                        print('물체가 화면 안에 없습니다. (${cnt}/3)');
                         setState(() {
-                          info = '물체가 화면 안에 없으므로 안내를 종료합니다.';
+                          info = '물체가 화면 안에 없습니다. (${cnt}/3)';
                         });
+                        if(cnt == 4){
+                          timer.cancel();
+                          print('10초 이상 물체를 찾지 못해 안내를 종료합니다.');
+                          setState(() {
+                            info = '10초 이상 물체를 찾지 못해 안내를 종료합니다.';
+                          });
+                        }
+                      }
+                      else {
+                        cnt = 0;
                       }
                     } catch (e) {
                       print('사진을 찍고 업로드하는 중 오류가 발생했습니다: $e');
                       timer.cancel(); // 예외 발생 시 타이머 취소
                       setState(() {
-                        info = '물체가 화면 안에 없으므로 안내를 종료합니다.';
+                        info = '사진을 찍고 업로드하는 중 오류가 발생했습니다: $e';
                       });
                     }
                   });
                 } catch (e) {
                   print('컨트롤러 초기화 중 오류가 발생했습니다: $e');
                   setState(() {
-                    info = '물체가 화면 안에 없으므로 안내를 종료합니다.';
+                    info = '컨트롤러 초기화 중 오류가 발생했습니다: $e';
                   });
                 }
               },
