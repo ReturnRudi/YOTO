@@ -1,10 +1,14 @@
-import 'dart:convert';
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:camera/camera.dart';
 import 'package:http/http.dart' as http;
 import 'dart:async';
-import 'list.dart';
+import 'package:yoto/objects.dart';
+import 'package:speech_to_text/speech_to_text.dart' as stt;
+import 'package:flutter_tts/flutter_tts.dart';
+import 'package:speech_to_text/speech_recognition_error.dart';
+import 'package:speech_to_text/speech_recognition_result.dart';
+
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -43,7 +47,16 @@ class _CameraAppState extends State<CameraApp> {
   String percentageText = '';
   String info = '';
   late int classInput;
-  TextEditingController _classInputController = TextEditingController(); // TextEditingController 추가
+  TextEditingController _classInputController = TextEditingController(); //
+  stt.SpeechToText _speech = stt.SpeechToText();
+  FlutterTts _flutterTts = FlutterTts();
+  final TextEditingController _pauseForController =
+  TextEditingController(text: '5');
+  final TextEditingController _listenForController =
+  TextEditingController(text: '30');
+  String lastWords = '';
+  final TextEditingController textController = TextEditingController(text: '');
+
 
   @override
   void initState() {
@@ -62,6 +75,46 @@ class _CameraAppState extends State<CameraApp> {
     _controller.dispose();
     super.dispose();
   }
+
+  Future<void> _speak(String text) async {
+    await _flutterTts.setLanguage("ko-KR");
+    await _flutterTts.setPitch(1.0);
+    await _flutterTts.speak(text);
+  }
+
+  Future<void> _startListening() async {
+    try {
+      if (!_speech.isListening) {
+        await _speech.initialize(); // SpeechToText 객체 초기화
+
+        final listenFor = int.tryParse(_listenForController.text) ?? 30;
+        final pauseFor = int.tryParse(_pauseForController.text) ?? 5;
+
+        _speech.listen(
+          onResult: resultListener,
+          listenFor: Duration(seconds: listenFor ?? 30),
+          pauseFor: Duration(seconds: pauseFor ?? 5),
+          localeId: 'ko_KR',
+        );
+      }
+    } catch (e) {
+      print('음성 인식 초기화 중 오류가 발생했습니다: $e');
+    }
+  }
+
+  void resultListener(SpeechRecognitionResult result) {
+    print(
+        'Result listener final: ${result.finalResult}, words: ${result.recognizedWords}');
+    setState(() {
+      lastWords = '${result.recognizedWords}';
+      textController.text = lastWords;
+    });
+  }
+
+
+
+
+
 
   Future<http.Response?> uploadGet(File imageFile, int inputClass) async {
     try {
@@ -95,176 +148,47 @@ class _CameraAppState extends State<CameraApp> {
   Widget build(BuildContext context) {
     return Scaffold(
       body: SafeArea(
-        child: SingleChildScrollView(
-          child: Column(
-            children: [
-              FutureBuilder<void>(
-                future: _initializeControllerFuture,
-                builder: (context, snapshot) {
-                  if (snapshot.connectionState == ConnectionState.done) {
-                    return CameraPreview(_controller);
-                  } else {
-                    return Center(child: CircularProgressIndicator());
-                  }
-                },
-              ),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Container(
-                    padding: EdgeInsets.only(top: 8, bottom: 8, right: 8),
-                    child: Text(
-                      '클래스 입력: ',
-                      style: TextStyle(fontSize: 15),
-                    ),
-                  ),
-                  Container(
-                    width: 100,
-                    padding: EdgeInsets.only(top: 8, bottom: 8),
-                    child: TextField(
-                      controller: _classInputController,
-                      decoration: InputDecoration(
-                        border: OutlineInputBorder(),
-                        labelText: '아래 목록 확인',
-                        labelStyle: TextStyle(fontSize: 12),
-                      ),
-                      maxLines: 1,
-                      minLines: 1,
-                    ),
-                  ),
-                  SizedBox(width: 16),
-                  ElevatedButton(
-                    onPressed: () {
-                      setState(() {
-                        classInput = int.tryParse(_classInputController.text) ?? 0;
-                        info = '클래스 번호를 ${classInput}으로 지정합니다.';
-                      });
-                    },
-                    child: Text('확인'),
-                  ),
-                ],
-              ),
-              Container(
-                child: Text(
-                  '방향: $detectionsText',
-                  style: TextStyle(fontSize: 15),
-                ),
-              ),
-              Container(
-                child: Text(
-                  '비율: $percentageText%',
-                  style: TextStyle(fontSize: 15),
-                ),
-              ),
-              Container(
-                child: Text(
-                  '안내: $info',
-                  style: TextStyle(fontSize: 15),
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-      floatingActionButtonLocation: FloatingActionButtonLocation.centerDocked,
-      floatingActionButton: Padding(
-        padding: const EdgeInsets.only(bottom: 16.0),
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            FloatingActionButton(
-              heroTag: 'shot',
-              onPressed: () async {
-                try {
-                  await _initializeControllerFuture;
-                  var cnt = 0;
+          child: GestureDetector(
+            onTap: () async {
+              try {
+                var cnt = 0;
+                var idx = -1;
 
-                  setState(() {
-                    info = '탐색을 시작합니다.';
-                  });
-                  // 사진을 주기적으로 찍어서 서버로 보내는 작업을 제어하기 위한 플래그 추가
-                  // 5초 간격으로 작업을 수행하는 타이머 생성
-                  Timer.periodic(Duration(seconds: 3), (timer) async {
-                    try {
-                      final XFile picture = await _controller.takePicture();
-                      final path = picture.path;
+                await _speak("찾고자 하는 물건의 이름을 말해주세요.");
 
-                      // 업로드 함수에서 서버 응답 확인
-                      var response = await uploadGet(File(path), classInput);
-                      Map<String, dynamic> responseBody = json.decode(
-                          response?.body ?? '{}');
+                await Future.delayed(Duration(seconds: 3)); // TTS 지속 시간에 맞게 조절
+                _startListening();
+                String recognizedWord = _classInputController.text;
+                idx = objects.indexOf(recognizedWord);
 
-                      String detections = responseBody['request_info']['detections'];
-                      double percentage = responseBody['request_info']['percentage'];
-                      print('Detections: $detections');
-                      print('percentage: $percentage');
-
-                      setState(() {
-                        detectionsText = '$detections';
-                        percentageText = '$percentage';
-                        info = '물체가 ${detectionsText} 방향에 있습니다.';
-                      });
-
-                      if (percentage > 15) {
-                        timer.cancel();
-                        print('물체 가까이 접근했으므로 안내를 종료합니다.');
-                        setState(() {
-                          info = '물체 가까이 접근했으므로 안내를 종료합니다.';
-                        });
-                      }
-                      else if (detections == "No items detected") {
-                        cnt++;
-                        print('물체가 화면 안에 없습니다. (${cnt}/3)');
-                        setState(() {
-                          info = '물체가 화면 안에 없습니다. (${cnt}/3)';
-                        });
-                        if(cnt == 4){
-                          timer.cancel();
-                          print('10초 이상 물체를 찾지 못해 안내를 종료합니다.');
-                          setState(() {
-                            info = '10초 이상 물체를 찾지 못해 안내를 종료합니다.';
-                          });
-                        }
-                      }
-                      else {
-                        cnt = 0;
-                      }
-                    } catch (e) {
-                      print('사진을 찍고 업로드하는 중 오류가 발생했습니다: $e');
-                      timer.cancel(); // 예외 발생 시 타이머 취소
-                      setState(() {
-                        info = '사진을 찍고 업로드하는 중 오류가 발생했습니다: $e';
-                      });
-                    }
-                  });
-                } catch (e) {
-                  print('컨트롤러 초기화 중 오류가 발생했습니다: $e');
-                  setState(() {
-                    info = '컨트롤러 초기화 중 오류가 발생했습니다: $e';
-                  });
+                if (idx != -1) {
+                  print('인식된 단어는 리스트의 $idx 번째 항목입니다: $recognizedWord');
+                } else {
+                  print('인식된 단어는 리스트에 없습니다: $recognizedWord');
                 }
-              },
-              child: Icon(Icons.camera),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(12.0),
-              ),
+              } catch (e) {
+                print('컨트롤러 초기화 중 오류가 발생했습니다: $e');
+                setState(() {
+                  info = '컨트롤러 초기화 중 오류가 발생했습니다: $e';
+                });
+              }
+            },
+            child: Column(
+              children: [
+                FutureBuilder<void>(
+                  future: _initializeControllerFuture,
+                  builder: (context, snapshot) {
+                    if (snapshot.connectionState == ConnectionState.done && !snapshot.hasError) {
+                      return CameraPreview(_controller);
+                    } else {
+                      return Center(child: CircularProgressIndicator());
+                    }
+                  },
+                ),
+
+              ],
             ),
-            SizedBox(width: 16.0),
-            FloatingActionButton(
-              heroTag: 'list',
-              onPressed: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (context) => ListScreen()),
-                );
-              },
-              child: Icon(Icons.book),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(12.0),
-              ),
-            ),
-          ],
-        ),
+          )
       ),
     );
   }

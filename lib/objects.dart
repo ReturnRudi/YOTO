@@ -1,0 +1,1 @@
+List<String> objects = ["물", "시계", "마우스"];
