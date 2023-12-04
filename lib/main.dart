@@ -1,13 +1,14 @@
 import 'dart:io';
+import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:camera/camera.dart';
 import 'package:http/http.dart' as http;
 import 'dart:async';
 import 'package:yoto/objects.dart';
-import 'package:speech_to_text/speech_to_text.dart' as stt;
 import 'package:flutter_tts/flutter_tts.dart';
 import 'package:speech_to_text/speech_recognition_error.dart';
 import 'package:speech_to_text/speech_recognition_result.dart';
+import 'package:speech_to_text/speech_to_text.dart' as stt;
 
 
 void main() async {
@@ -55,7 +56,11 @@ class _CameraAppState extends State<CameraApp> {
   final TextEditingController _listenForController =
   TextEditingController(text: '30');
   String lastWords = '';
+  String lastError = '';
   final TextEditingController textController = TextEditingController(text: '');
+  double minSoundLevel = 50000;
+  double maxSoundLevel = -50000;
+  double level = 0.0;
 
 
   @override
@@ -82,24 +87,24 @@ class _CameraAppState extends State<CameraApp> {
     await _flutterTts.speak(text);
   }
 
-  Future<void> _startListening() async {
-    try {
-      if (!_speech.isListening) {
-        await _speech.initialize(); // SpeechToText 객체 초기화
+  void _startListening() async {
+    await _speech.initialize(); // SpeechToText 객체 초기화
 
-        final listenFor = int.tryParse(_listenForController.text) ?? 30;
-        final pauseFor = int.tryParse(_pauseForController.text) ?? 5;
+    lastWords = '';
+    lastError = '';
+    final listenFor = int.tryParse(_listenForController.text);
+    final pauseFor = int.tryParse(_pauseForController.text);
 
-        _speech.listen(
-          onResult: resultListener,
-          listenFor: Duration(seconds: listenFor ?? 30),
-          pauseFor: Duration(seconds: pauseFor ?? 5),
-          localeId: 'ko_KR',
-        );
-      }
-    } catch (e) {
-      print('음성 인식 초기화 중 오류가 발생했습니다: $e');
-    }
+    _speech.listen(
+      onResult: resultListener,
+      listenFor: Duration(seconds: listenFor ?? 30),
+      pauseFor: Duration(seconds: pauseFor ?? 5),
+      onSoundLevelChange: soundLevelListener,
+      listenMode: stt.ListenMode.confirmation,
+      cancelOnError: true,
+      partialResults: true,
+      localeId: 'ko_KR',
+    );
   }
 
   void resultListener(SpeechRecognitionResult result) {
@@ -111,10 +116,14 @@ class _CameraAppState extends State<CameraApp> {
     });
   }
 
-
-
-
-
+  void soundLevelListener(double level) {
+    minSoundLevel = min(minSoundLevel, level);
+    maxSoundLevel = max(maxSoundLevel, level);
+    // _logEvent('sound level $level: $minSoundLevel - $maxSoundLevel ');
+    setState(() {
+      this.level = level;
+    });
+  }
 
   Future<http.Response?> uploadGet(File imageFile, int inputClass) async {
     try {
@@ -185,7 +194,6 @@ class _CameraAppState extends State<CameraApp> {
                     }
                   },
                 ),
-
               ],
             ),
           )
