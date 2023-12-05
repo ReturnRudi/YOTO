@@ -1,3 +1,4 @@
+import 'dart:developer';
 import 'dart:io';
 import 'dart:math';
 import 'package:flutter/material.dart';
@@ -20,7 +21,6 @@ void main() async {
 
 class MyApp extends StatelessWidget {
   final CameraDescription camera;
-
   const MyApp({Key? key, required this.camera}) : super(key: key);
 
   @override
@@ -34,7 +34,6 @@ class MyApp extends StatelessWidget {
 
 class CameraApp extends StatefulWidget {
   final CameraDescription camera;
-
   const CameraApp({Key? key, required this.camera}) : super(key: key);
 
   @override
@@ -48,19 +47,14 @@ class _CameraAppState extends State<CameraApp> {
   String percentageText = '';
   String info = '';
   late int classInput;
-  TextEditingController _classInputController = TextEditingController(); //
   stt.SpeechToText _speech = stt.SpeechToText();
   FlutterTts _flutterTts = FlutterTts();
-  final TextEditingController _pauseForController =
-  TextEditingController(text: '5');
-  final TextEditingController _listenForController =
-  TextEditingController(text: '30');
   String lastWords = '';
   String lastError = '';
-  final TextEditingController textController = TextEditingController(text: '');
   double minSoundLevel = 50000;
   double maxSoundLevel = -50000;
   double level = 0.0;
+  var idx = -1;
 
 
   @override
@@ -92,13 +86,11 @@ class _CameraAppState extends State<CameraApp> {
 
     lastWords = '';
     lastError = '';
-    final listenFor = int.tryParse(_listenForController.text);
-    final pauseFor = int.tryParse(_pauseForController.text);
 
     _speech.listen(
       onResult: resultListener,
-      listenFor: Duration(seconds: listenFor ?? 30),
-      pauseFor: Duration(seconds: pauseFor ?? 5),
+      listenFor: Duration(seconds: 30),
+      pauseFor: Duration(seconds: 5),
       onSoundLevelChange: soundLevelListener,
       listenMode: stt.ListenMode.confirmation,
       cancelOnError: true,
@@ -109,10 +101,22 @@ class _CameraAppState extends State<CameraApp> {
 
   void resultListener(SpeechRecognitionResult result) {
     print(
-        'Result listener final: ${result.finalResult}, words: ${result.recognizedWords}');
+        '최종 결과: ${result.finalResult}, 단어: ${result.recognizedWords}');
+
+/*    if(result.finalResult){
+      String recognizedWord = result.recognizedWords;
+      idx = objects.indexOf(recognizedWord);
+
+      if (idx != -1) {
+        print('인식된 단어는 리스트의 $idx 번째 항목입니다: $recognizedWord');
+      } else {
+        print('인식된 단어는 리스트에 없습니다: $recognizedWord');
+      }
+    }*/
+
     setState(() {
       lastWords = '${result.recognizedWords}';
-      textController.text = lastWords;
+      //resultflag = true;
     });
   }
 
@@ -161,20 +165,30 @@ class _CameraAppState extends State<CameraApp> {
             onTap: () async {
               try {
                 var cnt = 0;
-                var idx = -1;
-
                 await _speak("찾고자 하는 물건의 이름을 말해주세요.");
-
                 await Future.delayed(Duration(seconds: 3)); // TTS 지속 시간에 맞게 조절
                 _startListening();
-                String recognizedWord = _classInputController.text;
-                idx = objects.indexOf(recognizedWord);
+                await Future.delayed(Duration(seconds: 5));
+
+                idx = objects.indexOf(lastWords);
 
                 if (idx != -1) {
-                  print('인식된 단어는 리스트의 $idx 번째 항목입니다: $recognizedWord');
+                  print('인식된 단어는 리스트의 $idx 번째 항목입니다: $lastWords');
                 } else {
-                  print('인식된 단어는 리스트에 없습니다: $recognizedWord');
+                  if(lastWords == ''){
+                    await _speak("음성이 입력되지 않았습니다. 다시 시작하려면 화면을 터치해주세요.");
+                    print('음성이 입력되지 않았습니다. 다시 시작하려면 화면을 터치해주세요.');
+                  }
+                  else{
+                    await _speak("입력된 품목은 ${lastWords} 입니다. 해당 품목은 지원하지 않습니다. 다시 시작하려면 화면을 터치해주세요.");
+                    print('입력된 품목은 ${lastWords} 입니다. 해당 품목은 지원하지 않습니다. 다시 시작하려면 화면을 터치해주세요.');
+                  }
                 }
+
+
+
+
+
               } catch (e) {
                 print('컨트롤러 초기화 중 오류가 발생했습니다: $e');
                 setState(() {
