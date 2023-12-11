@@ -131,7 +131,7 @@ class _CameraAppState extends State<CameraApp> {
   Future<http.Response?> uploadGet(File imageFile, int inputClass) async {
     try {
       // 1. POST 요청: 이미지 업로드
-      String serverUrl = "http://3.34.135.192:80/inference";
+      String serverUrl = "http://3.36.122.126:80/inference";
       var uri = Uri.parse(serverUrl);
       var request = http.MultipartRequest('POST', uri);
       request.files.add(
@@ -171,9 +171,92 @@ class _CameraAppState extends State<CameraApp> {
               idx = objects.indexOf(lastWords);
 
               if (idx != -1) {
+                await _speak("안내를 시작합니다.");
                 print('인식된 단어는 리스트의 $idx 번째 항목입니다: $lastWords');
                 setState(() {
                   classInput = idx;
+                });
+
+                Timer.periodic(Duration(seconds: 3), (timer) async {
+                  try {
+
+                    if(cnt < 3){
+                      final XFile picture = await _controller.takePicture();
+                      final path = picture.path;
+
+                      // 업로드 함수에서 서버 응답 확인
+                      var response = await uploadGet(File(path), classInput);
+                      Map<String, dynamic> responseBody = json.decode(
+                          response?.body ?? '{}');
+
+                      String detections = responseBody['request_info']['detections'];
+                      double percentage = responseBody['request_info']['percentage'];
+                      print('Detections: $detections');
+                      print('percentage: $percentage');
+
+                      setState(() {
+                        detectionsText = '$detections';
+                        percentageText = '$percentage';
+                      });
+
+                      if(detectionsText == "Right"){
+                        detectionsText = "우측";
+                      }
+                      else if(detectionsText == "Up Right"){
+                        detectionsText = "우측상단";
+                      }
+                      else if(detectionsText == "Up"){
+                        detectionsText = "상단";
+                      }
+                      else if(detectionsText == "Up Left"){
+                        detectionsText = "좌측상단";
+                      }
+                      else if(detectionsText == "Left"){
+                        detectionsText = "좌측";
+                      }
+                      else if(detectionsText == "Left Down"){
+                        detectionsText = "좌측하단";
+                      }
+                      else if(detectionsText == "Down"){
+                        detectionsText = "하단";
+                      }
+                      else if(detectionsText == "Right Down"){
+                        detectionsText = "우측하단";
+                      }
+                      else if(detectionsText == "Straight"){
+                        detectionsText = "전방";
+                      }
+
+                      if (percentage > 15) {
+                        timer.cancel();
+                        print('가까이 접근했으므로 안내를 종료합니다.');
+                        await _speak("가까이 접근했으므로 안내를 종료합니다.");
+                        await Future.delayed(Duration(seconds: 3));
+                      }
+                      else if (detections == "No items detected") {
+                        cnt++;
+                        print('물체가 화면 안에 없습니다. (${cnt}/3)');
+                        await _speak("물체가 화면 안에 없습니다.");
+                        await Future.delayed(Duration(seconds: 3));
+                      }
+                      else {
+                        await _speak("${detectionsText}에 있습니다.");
+                        await Future.delayed(Duration(seconds: 3));
+                        cnt = 0;
+                      }
+                    }
+                    else{
+                      timer.cancel();
+                      print('10초 이상 물체를 찾지 못해 안내를 종료합니다.');
+                      await _speak("10초 이상 물체를 찾지 못해 안내를 종료합니다.");
+                      await Future.delayed(Duration(seconds: 3));
+                    }
+                  } catch (e) {
+                    print('사진을 찍고 업로드하는 중 오류가 발생했습니다: $e');
+                    await _speak("사진을 찍고 업로드하는 중 오류가 발생했습니다.");
+                    await Future.delayed(Duration(seconds: 3));
+                    timer.cancel(); // 예외 발생 시 타이머 취소
+                  }
                 });
               } else {
                 if(lastWords == ''){
@@ -185,88 +268,6 @@ class _CameraAppState extends State<CameraApp> {
                   print('입력된 품목은 ${lastWords} 입니다. 해당 품목은 지원하지 않습니다. 다시 시작하려면 화면을 터치해주세요.');
                 }
               }
-
-              Timer.periodic(Duration(seconds: 3), (timer) async {
-                try {
-
-                  if(cnt < 3){
-                    final XFile picture = await _controller.takePicture();
-                    final path = picture.path;
-
-                    // 업로드 함수에서 서버 응답 확인
-                    var response = await uploadGet(File(path), classInput);
-                    Map<String, dynamic> responseBody = json.decode(
-                        response?.body ?? '{}');
-
-                    String detections = responseBody['request_info']['detections'];
-                    double percentage = responseBody['request_info']['percentage'];
-                    print('Detections: $detections');
-                    print('percentage: $percentage');
-
-                    setState(() {
-                      detectionsText = '$detections';
-                      percentageText = '$percentage';
-                    });
-
-                    if(detectionsText == "Right"){
-                      detectionsText = "우측";
-                    }
-                    else if(detectionsText == "Up Right"){
-                      detectionsText = "우측상단";
-                    }
-                    else if(detectionsText == "Up"){
-                      detectionsText = "상단";
-                    }
-                    else if(detectionsText == "Up Left"){
-                      detectionsText = "좌측상단";
-                    }
-                    else if(detectionsText == "Left"){
-                      detectionsText = "좌측";
-                    }
-                    else if(detectionsText == "Left Down"){
-                      detectionsText = "좌측하단";
-                    }
-                    else if(detectionsText == "Down"){
-                      detectionsText = "하단";
-                    }
-                    else if(detectionsText == "Right Down"){
-                      detectionsText = "우측하단";
-                    }
-                    else if(detectionsText == "Straight"){
-                      detectionsText = "전방";
-                    }
-
-                    if (percentage > 15) {
-                      timer.cancel();
-                      print('가까이 접근했으므로 안내를 종료합니다.');
-                      await _speak("가까이 접근했으므로 안내를 종료합니다.");
-                      await Future.delayed(Duration(seconds: 3));
-                    }
-                    else if (detections == "No items detected") {
-                      cnt++;
-                      print('물체가 화면 안에 없습니다. (${cnt}/3)');
-                      await _speak("물체가 화면 안에 없습니다.");
-                      await Future.delayed(Duration(seconds: 3));
-                    }
-                    else {
-                      await _speak("${detectionsText}에 있습니다.");
-                      await Future.delayed(Duration(seconds: 3));
-                      cnt = 0;
-                    }
-                  }
-                  else{
-                    timer.cancel();
-                    print('10초 이상 물체를 찾지 못해 안내를 종료합니다.');
-                    await _speak("10초 이상 물체를 찾지 못해 안내를 종료합니다.");
-                    await Future.delayed(Duration(seconds: 3));
-                  }
-                } catch (e) {
-                  print('사진을 찍고 업로드하는 중 오류가 발생했습니다: $e');
-                  await _speak("사진을 찍고 업로드하는 중 오류가 발생했습니다.");
-                  await Future.delayed(Duration(seconds: 3));
-                  timer.cancel(); // 예외 발생 시 타이머 취소
-                }
-              });
 
             } catch (e) {
               print('컨트롤러 초기화 중 오류가 발생했습니다: $e');
