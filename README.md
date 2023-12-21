@@ -20,7 +20,7 @@
 - **Framework**: <img src="https://img.shields.io/badge/flutter-02569B?style=flat-square&logo=flutter&logoColor=white" />
 - **Language**: <img src="https://img.shields.io/badge/dart-0175C2?style=flat-square&logo=dart&logoColor=white" /> <img src="https://img.shields.io/badge/Python-3776AB?style=flat-square&logo=python&logoColor=white" />
 
-### 🚨 서버 구조
+### 🗺 서버 구조
 
   
 
