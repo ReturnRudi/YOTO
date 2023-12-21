@@ -1,9 +1,9 @@
 ### How to Serve
 
-    1. AWS EC2 inf1 ÀÎ½ºÅÏ½º »ı¼º
-    2. ÇÊ¿ä ÆĞÅ°Áö ¼³Ä¡(°ø½Ä¹®¼­ Âü°í: [[Link]](https://awsdocs-neuron.readthedocs-hosted.com/en/v1.19.1/neuron-intro/pytorch-setup/pytorch-install.html))
-    3. AWS EC2¿¡ YOTO Æú´õ »ı¼º
-    4. YOTO Æú´õ ³»¿¡ AWS inf ³»¿ë¹° ¸ğµÎ º¹»ç
-    5. YOTO Æú´õ·Î ÀÌµ¿
-    6. gen.sh ½ÇÇà --> model.py ÀÚµ¿ »ı¼º (sh gen.sh)
-    7. docker compose up ¸í·É¾î ÀÔ·Â
+- AWS EC2 inf1 ì¸ìŠ¤í„´ìŠ¤ ìƒì„±
+- í•„ìš” íŒ¨í‚¤ì§€ ì„¤ì¹˜(ê³µì‹ë¬¸ì„œ ì°¸ê³ : [[Link]](https://awsdocs-neuron.readthedocs-hosted.com/en/v1.19.1/neuron-intro/pytorch-setup/pytorch-install.html))
+- AWS EC2ì— YOTO í´ë” ìƒì„±
+- YOTO í´ë” ë‚´ì— AWS inf ë‚´ìš©ë¬¼ ëª¨ë‘ ë³µì‚¬
+- YOTO í´ë”ë¡œ ì´ë™
+- gen.sh ì‹¤í–‰ --> model.py ìë™ ìƒì„± (sh gen.sh)
+- docker compose up ëª…ë ¹ì–´ ì…ë ¥
