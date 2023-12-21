@@ -1,0 +1,35 @@
+version: "3"
+
+services:
+  tritoninferenceserver:
+    build:
+      context: .
+      dockerfile: ./server/Dockerfile
+    container_name: YOTO_TritonInferenceServer
+    devices:
+      - /dev/neuron0
+    volumes:
+      - /home/ubuntu/python_backend:/home/ubuntu/python_backend
+      - /lib/udev:/mylib/udev
+      - /home/ubuntu/YOTO/server/model-repository:/model-repository
+    command: tritonserver --model-repository=/model-repository
+    ports:
+      - 8000:8000
+      - 8001:8001
+      - 8002:8002
+    shm_size: 8g
+
+  fastapi:
+    build:
+      context: .
+      dockerfile: ./client/Dockerfile
+    container_name: YOTO_FastAPI
+    volumes:
+      - /home/ubuntu/YOTO/client/inputs:/app/inputs
+      - /home/ubuntu/YOTO/client/outputs:/app/outputs
+    ports:
+      - 80:80
+
+networks:
+  default:
+    name: YOTO-network
